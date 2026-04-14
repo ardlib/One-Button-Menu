@@ -12,14 +12,14 @@ typedef void (*CB)(byte state, uint32_t since);
 class OBM {
 
 private:
-    bool isPressed;
-    bool isDetected;
-    uint32_t ts;
-    byte pin;
-    uint8_t mode;
-    CB func;
-    bool isConfigured;
-    uint32_t debounce_ms;
+    bool isPressed; // For Is Just Button Press Detected
+    bool isDetected; // For Button Press was Debounced and Reported
+    uint32_t ts; // Time Stamp of Event
+    byte pin; // IO Pin Number
+    uint8_t mode; // Mode For the Pin
+    CB func; // Callback Function
+    bool isConfigured; // Indicate that All configuration is complete
+    uint32_t debounce_ms; // Debounce Registered duration
 
 private:
     // Check if the Valid Button was initialized
@@ -43,13 +43,14 @@ private:
         if (state) {
             isPressed = false;
             isDetected = true; // Set the Detected state
+            uint32_t diff = ct - ts;
             ts = ct; // Set the Time when it was detected
 #ifdef DEBUG
             Serial.println(F("Button Press Detected"));
 #endif
             // Callback if available - Confirmed Press Event
             if (func != NULL) {
-                func(true, ct);
+                func(true, diff);
             }
 
             // Return the Button Press Confirmed
@@ -63,6 +64,30 @@ private:
 #ifdef DEBUG
         Serial.println(F("Button Released prematurely"));
 #endif
+        return false;
+    }
+
+    // Check the things in Detected state
+    bool _checkInDetected(bool state, uint32_t ct)
+    {
+        // Button is not Released - we wait
+        if (state)
+            return false;
+
+        // Button was released
+        isDetected = false; // Set the un-detected state
+        isPressed = false;
+        uint32_t diff = ct - ts;
+        ts = 0; // Clear the timeout
+#ifdef DEBUG
+        Serial.println(F("Button Released Correctly"));
+#endif
+        // Callback if available - Released Event
+        if (func != NULL) {
+            func(false, diff);
+        }
+        // End of Released State Processing
+
         return false;
     }
 
@@ -132,48 +157,28 @@ public:
 
         // Check if the Button is in Pressed state
         if (isPressed) {
-          return _checkInPressed(state, ct);
+            return _checkInPressed(state, ct);
         }
 
         // if In detected State - Button was Pressed
         // We are waiting for its release
         if (isDetected) {
-            // If the button is in the Detected State
+            return _checkInDetected(state, ct);
+        }
 
-            // Check if still pressed or not
-            if (!state) {
-                // Button was released
-                isDetected = false; // Set the un-detected state
-                isPressed = false;
-                uint32_t diff = ct - ts;
-                ts = 0; // Clear the timeout
+        // If both above cases are not true and
+        // Button was not touched earlier
+
+        // Button got Just Pressed
+        if (state) {
+            // Button is indeed pressed
+            isDetected = false;
+            isPressed = true; // Pressed State for De-bounce
+            ts = ct; // Timeout updated
 #ifdef DEBUG
-                Serial.println(F("Button Released Correctly"));
+            Serial.println(F("Button Just Pressed"));
 #endif
-                // Callback if available - Released Event
-                if (func != NULL) {
-                    func(false, diff);
-                }
-                // End of Released State Processing
-            }
-            // Other wise we wait till the button is released
-
-        } else {
-
-            // If both above cases are not true and Button was not touched earlier
-            if (state) {
-                // Button is indeed pressed
-                isDetected = false;
-                isPressed = true; // Pressed State for De-bounce
-                ts = ct; // Timeout updated
-#ifdef DEBUG
-                Serial.println(F("Button Just Pressed"));
-#endif
-            }
-            // Other wise the button was not pressed and we have nothing to do
-
-        } // End of Button Checks
-
+        }
         // Return the normally Non-Detected State
         return false;
     }
