@@ -11,14 +11,14 @@ void buttonCallBack(bool state, uint32_t duration_ms) {
 }
 void setup() {
   delay(10000); // Startup delay to open Serial Console
-  
+
   Serial.begin(115200);
-  
+
   if (btn.begin()) {
     Serial.println(F("Button Configured"));
   }
   btn.attach(buttonCallBack);
-  
+
   Serial.println(F("Running!"));
 }
 
