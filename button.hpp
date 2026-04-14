@@ -31,6 +31,7 @@ private:
         return false;
     }
 
+private:
     // Check the things in Pressed State
     bool _checkInPressed(bool state, uint32_t ct)
     {
@@ -67,6 +68,7 @@ private:
         return false;
     }
 
+private:
     // Check the things in Detected state
     bool _checkInDetected(bool state, uint32_t ct)
     {
